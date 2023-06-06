@@ -30,7 +30,7 @@ class sched_switch_event():
 class sched_waking_event():
     __slots__ = ('line', 'comm', 'pid', 'prio', 'target_cpu')
     def __init__(self, trace):
-        ret = re.findall("\s+comm\=(.{0,16}) pid\=(\d+) prio\=(\d+) target_cpu\=(\d+)", trace)
+        ret = re.findall("\s+comm\=(.{0,16}) pid\=(\d+) prio\=(\d+)[\s\S]+target_cpu\=(\d+)", trace)
         if ret:
             self.line = trace
             self.comm, self.pid, self.prio, self.target_cpu = ret[0]

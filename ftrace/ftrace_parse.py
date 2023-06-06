@@ -8,9 +8,7 @@ from events import event, eventlist
 from sched import sched_switch_event, sched_waking_event
 import matplotlib.pyplot as plt
 import networkx as nx
-
-def ts2us(ts):
-    return round(ts * 1000000, 3)
+from common import ts2us
 
 class ftrace():
     def __init__(self, logfile=None):
@@ -37,6 +35,10 @@ class ftrace():
                 else:
                     print("parse failed:", line)
 
+    def eventlist_slice(self, start, end):
+        inter = Interval(start, end)
+        self.elist = self.elist.slice(inter)
+
     def calc_sched_latency(self):
         waked_tsks = {} # key = tsk, val = waked_ts
         preempted_tsks = {} # key = tsk, val = preempted_ts
@@ -52,12 +54,13 @@ class ftrace():
                 prev_stat = e.trace.prev_state
                 ts = e.timestamp
 
-            # 被唤醒后第一次执行，统计调度延迟
+                # 被唤醒后第一次执行，统计调度延迟
                 if switch_in_tsk in waked_tsks:
                     #if ts2us(ts - waked_tsks[switch_in_tsk]) > 100:
                     #    print("sched latency of {} is {}, at {}-{}".format(switch_in_tsk, ts2us(ts - waked_tsks[switch_in_tsk]),  waked_tsks[switch_in_tsk], ts))
                     switch_in_tsk.add_sched_latency(waked_tsks[switch_in_tsk], ts2us(ts - waked_tsks[switch_in_tsk]))
-
+                    if switch_in_tsk.sched_latency_in_period:
+                        switch_in_tsk.add_sched_latency_in_period(ts2us(ts - waked_tsks[switch_in_tsk]))
                     del waked_tsks[switch_in_tsk]
 
                 # 被抢占后第一次执行，统计被抢占时间
@@ -68,11 +71,14 @@ class ftrace():
                     #if ts2us(ts - preempted_tsks[switch_in_tsk]) > 100:
                     #    print("preempted latency of {} is {}, at {}-{}".format(switch_in_tsk, ts2us(ts - preempted_tsks[switch_in_tsk]),  preempted_tsks[switch_in_tsk], ts))
                     switch_in_tsk.add_sched_latency(preempted_tsks[switch_in_tsk], ts2us(ts - preempted_tsks[switch_in_tsk]))
-
+                    if switch_in_tsk.sched_latency_in_period:
+                        switch_in_tsk.add_sched_latency_in_period(ts2us(ts - preempted_tsks[switch_in_tsk]))
                     del preempted_tsks[switch_in_tsk]
 
                 if prev_stat == "S":
                     sleep_tsks[switch_out_tsk] = e.timestamp
+                    if switch_out_tsk.run_period:
+                        switch_out_tsk.update_run_period(e.timestamp)
 
             if e.eventtype == "sched_waking":
                 waked_pid = e.trace.pid
@@ -80,10 +86,17 @@ class ftrace():
                 waked_tsks[waked_tsk] = e.timestamp
                 if waked_tsk in sleep_tsks:
                     waked_tsk.add_sleep_ts(sleep_tsks[waked_tsk], ts2us(e.timestamp - sleep_tsks[waked_tsk]))
+                    waked_tsk.append_run_period_ts(e.timestamp)
+                    waked_tsk.append_run_period(0)
+                    waked_tsk.append_sched_latency_in_period(0)
+                    del sleep_tsks[waked_tsk]
 
                 waker_tsk = e.task
                 waker_tsk = self.tasklist[e.task]
                 self.stat_waking_events(waker_tsk, waked_tsk)
+
+    # 统计线程sleep状态下，从一次wakeup到再次进入sleep的总时间、总调度延迟时间
+    # 反应了一次运行周期下，线程的延迟
 
     def show_sched_latency_all(self):
         for pid in self.tasklist:
@@ -94,7 +107,7 @@ class ftrace():
         tsk = self.tasklist[pid]
         print("{:<8} {:<16} {:>10.3f} {:>10}".format(tsk.pid, tsk.name, tsk.avg_sched_latency(), tsk.max_sched_latency()))
 
-    def plot_scehd_latency_all(self):
+    def plot_sched_latency_all(self):
         pids = []
         avg_sl = []
         max_sl = []
@@ -161,32 +174,12 @@ class ftrace():
         for key in self.wakechain:
             print("{} ==> {}: {:>8}".format(key[0], key[1], self.wakechain[key]))
 
-ft = ftrace()
-#ft.tasklist.showall()
-#inter = Interval(327082.131285, 327083.131285)
+    def show_sched_lantecy_by_tgid(self, tgid):
+        for tsk in self.tasklist:
+            task = self.tasklist[tsk]
+            if task.tgid == tgid:
+                print("{:<16} {:<8}".format(task.name, tsk), end='')
+                task.show_sched_latency_each_period()
 
-ft.calc_sched_latency()
-
-#ft.show_sched_latency_all()
-
-#ft.plot_sched_latency()
-
-#ft.plot_scehd_latency_all()
-
-ft.nx_wakechain()
-#ft.show_wakechain()
-
-
-#ft.tasklist[8138].slot_wake()
-#ft.stat_waker_by_pid(8138)
-#ft.stat_waked_by_pid(8138)
-
-#for tsk in ft.tasklist:
-#    print(tsk)
- #   if 0 or tsk == 8138:
-#        ft.tasklist[tsk].show_sched_latency()
-#        ft.tasklist[tsk].plot_sched_latency()
-     #   ft.tasklist[tsk].show_sleep_ts()
-    #    ft.tasklist[tsk].plot_sleep_ts()
 
 
