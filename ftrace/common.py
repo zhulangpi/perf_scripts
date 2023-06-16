@@ -1,6 +1,8 @@
 #! /usr/bin/env python
 #-*- coding: utf8 -*-
 
+import sys
+
 def ts2us(ts):
     return round(ts * 1000000, 3)
 

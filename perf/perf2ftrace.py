@@ -13,7 +13,7 @@ def pr_err(*a):
 
 
 # 打印的时候统一用该格式，这样可以python正则匹配每句log
-# sudo perf script -F comm,tid,pid,cpu,time,event,trace > perf.script
+# sudo perf script -F comm,pid,tid,cpu,time,event,trace > perf.script
 
 
 
@@ -28,9 +28,9 @@ with open("perf.script") as f:
         #swapper     0/0     [004] 320543.563698:       sched:sched_switch: prev_comm=swapper/4 prev_pid=0 prev_prio=120 prev_state=R ==> next_comm=perf next_pid=2134363 next_prio=120
         ret = re.findall("(\S+)\s+(\S+)\/(\S+)\s+\[(\d+)\]\s+(\S+)\s+(\S+)([\S+\s+]+)\n", line)
         if ret:
-            comm, tid, pid, cpu, time, event, trace = ret[0]
+            comm, pid, tid, cpu, time, event, trace = ret[0]
             if comm != "-1" and tid != "-1" and pid != "-1":
-                thread_map[pid] = [pid, comm]
+                thread_map[tid] = [pid, comm]
 
 
 #for k in thread_map:
@@ -42,8 +42,13 @@ def get_tid_from_trace(trace):
     ret = re.findall("prev_comm=.{0,16} prev_pid=(\S+) prev_prio=\d+ prev_state=\S+ ==>[\S+\s+]+", trace)
     if ret:
         return ret[0]
-    else:
-        pr_err("get_tid_from_trace {} failed!".format(trace))
+
+    ret = re.findall("comm=.{0,16} pid=(\d+) prio=\d+ target_cpu=\d+", trace)
+    if ret:
+        return ret[0]
+
+    pr_err("get_tid_from_trace {} failed!".format(trace))
+    return -1
 
 
 # output ftrace log
@@ -71,7 +76,7 @@ with open("perf.script") as f:
                     tid = get_tid_from_trace(trace)
                     error_log = 1
                 if pid == "-1" or comm == ":-1":
-                    comm, pid = thread_map[tid]
+                    pid, comm = thread_map[tid]
                     error_log = 1
                 new_log = " {:>16}-{:<8} ({:>7}) [{}] ..... {} {} {}".format(comm, tid, pid, cpu, time, event, trace)
                 if error_log:

@@ -11,14 +11,16 @@ import networkx as nx
 from common import ts2us
 from ftrace_parse import ftrace
 
-logname = "trace.systrace.rt"
+logname = "ftrace.log"
 
 ft = ftrace(logname)
 #ft.tasklist.showall()
 
 #ft.eventlist_slice(359.694424, 360.694424)
 
-ft.calc_sched_latency()
+#ft.elist.check_if_data_lost()
+
+#ft.calc_sched_latency()
 
 #ft.show_sched_latency_all()
 
@@ -46,6 +48,6 @@ ft.calc_sched_latency()
  #       task.show_sched_latency_each_period()
  #       ft.tasklist[tsk].plot_sched_latency_each_period()
 
-ft.show_sched_lantecy_by_tgid(3239)
+#ft.show_sched_lantecy_by_tgid(3239)
 
 

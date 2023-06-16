@@ -34,6 +34,7 @@ class ftrace():
                     self.elist.append(e)
                 else:
                     print("parse failed:", line)
+        self.elist.check_if_data_lost()
 
     def eventlist_slice(self, start, end):
         inter = Interval(start, end)

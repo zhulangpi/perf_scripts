@@ -6,7 +6,7 @@ from bisect import bisect_left, bisect
 import re
 from tasks import task, tasks
 from sched import sched_switch_event, sched_waking_event
-
+from common import pr_err
 
 class event:
     __slots__ = ('task', 'cpu', 'timestamp', 'eventtype', 'trace')
@@ -45,6 +45,16 @@ class eventlist(list):
             return Interval(start=self.start, end=self.end)
         except:
             return None
+
+    def check_if_data_lost(self):
+        prev_cpus = [-1] * 64 # assume that cpus_nr <= 64
+        for e in self:
+            if e.eventtype == "sched_switch":
+                if prev_cpus[e.cpu] != -1:
+                    if prev_cpus[e.cpu] != e.trace.prev_pid:
+                        pr_err("error: discontinous data({}) at {}".format(e.trace, e.timestamp))
+                prev_cpus[e.cpu] = e.trace.next_pid
+
 
     def __add_timestamp(self, obj):
         """Insert (sorted) object with timestamp attribute to timestamps list.
