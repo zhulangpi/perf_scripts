@@ -121,6 +121,21 @@ class ftrace():
         plt.plot(pids, max_sl, 'b.')
         plt.show()
 
+    def plot_sched_latency_tgid(self, tgid):
+        pids = []
+        avg_sl = []
+        max_sl = []
+        for pid in self.tasklist:
+            tsk = self.tasklist[pid]
+            if tsk.tgid != tgid:
+                continue
+            pids.append(pid)
+            avg_sl.append(tsk.avg_sched_latency())
+            max_sl.append(tsk.max_sched_latency())
+        plt.plot(pids, avg_sl, 'rx')
+        plt.plot(pids, max_sl, 'b.')
+        plt.show()
+
     def stat_waking_events(self, waker, waked):
         if waked not in self.tasklist or waker not in self.tasklist:
             return
@@ -181,6 +196,4 @@ class ftrace():
             if task.tgid == tgid:
                 print("{:<16} {:<8}".format(task.name, tsk), end='')
                 task.show_sched_latency_each_period()
-
-
 

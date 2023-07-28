@@ -16,6 +16,7 @@ def pr_err(*a):
 # sudo perf script -F comm,pid,tid,cpu,time,event,trace > perf.script
 
 
+lastline = [0]* 64 # assume that nr_cpus < 64
 
 thread_map = {}
 
@@ -29,7 +30,7 @@ with open("perf.script") as f:
         ret = re.findall("(\S+)\s+(\S+)\/(\S+)\s+\[(\d+)\]\s+(\S+)\s+(\S+)([\S+\s+]+)\n", line)
         if ret:
             comm, pid, tid, cpu, time, event, trace = ret[0]
-            if comm != "-1" and tid != "-1" and pid != "-1":
+            if comm != ":-1" and tid != "-1" and pid != "-1":
                 thread_map[tid] = [pid, comm]
 
 
@@ -47,6 +48,12 @@ def get_tid_from_trace(trace):
     if ret:
         return ret[0]
 
+    #MuQSS/1:0 [104] R ==> kworker/u8:3:201 [102]
+    #futex-wake-para:14984 [102] Z ==> MuQSS/0:0 [104]
+    ret = re.findall("\S+:(\d+) \[\d+\] \S+ ==> ", trace)
+    if ret:
+        return ret[0]
+
     pr_err("get_tid_from_trace {} failed!".format(trace))
     return -1
 
@@ -61,11 +68,23 @@ with open("perf.script") as f:
         #print(ret)
         if ret:
             comm, pid, tid, cpu, time, event, trace = ret[0]
+            cpu = int(cpu)
+            if lastline[cpu] == line:
+                continue
+            lastline[cpu] = line
             vaild_log = 0; error_log = 0
             #print(comm, tid, pid, cpu, time, event, trace)
             if re.findall("sched_switch", event):
                 event = "sched_switch:"
                 vaild_log = 1
+                #futex-wake-para:15532 [102] R ==> futex-wake-para:15531 [102]
+                #in:imuxsock:21232 [102] S ==> rs:main Q:Reg:21234 [102]
+                badtrace = re.findall("(.{0,16}):(\d+) \[(\d+)\] (\S+) ==> (.{0,16}):(\d+) \[(\d+)\]", trace)
+                if badtrace:
+                    badtrace = badtrace[0]
+                    #[('rcuc/3', '29', '99', 'S', 'ksoftirqd/3', '30', '102')]
+                    trace = "prev_comm={} prev_pid={} prev_prio={} prev_state={} ==> next_comm={} next_pid={} next_prio={}".format(badtrace[0], badtrace[1], badtrace[2], badtrace[3], badtrace[4], badtrace[5],badtrace[6])
+
             elif re.findall("sched_waking", event):
                 event = "sched_waking:"
                 vaild_log = 1
@@ -76,7 +95,11 @@ with open("perf.script") as f:
                     tid = get_tid_from_trace(trace)
                     error_log = 1
                 if pid == "-1" or comm == ":-1":
-                    pid, comm = thread_map[tid]
+                    try:
+                        pid, comm = thread_map[tid]
+                    except:
+                        pr_err(line)
+                        #exit()
                     error_log = 1
                 new_log = " {:>16}-{:<8} ({:>7}) [{}] ..... {} {} {}".format(comm, tid, pid, cpu, time, event, trace)
                 if error_log:
