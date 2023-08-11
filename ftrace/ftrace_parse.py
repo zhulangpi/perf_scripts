@@ -99,11 +99,26 @@ class ftrace():
     # 统计线程sleep状态下，从一次wakeup到再次进入sleep的总时间、总调度延迟时间
     # 反应了一次运行周期下，线程的延迟
 
-    def show_sched_latency_all(self):
+    def show_sched_latency_all(self, topN = 100000):
+        i = 0
+        sorted_tsk = sorted(self.tasklist.items(), key = lambda kv:kv[1].max_sched_latency(), reverse=True)
+        print("{:<8} {:<16} {:>10} {:>16} {:>16}".format("pid", "comm", "avg_latency/us", "max_lat/us", "max_lat_switch_in_time/s"))
+        for tsk in sorted_tsk:
+            if i > topN:
+                break
+            tsk = tsk[1]
+            if tsk.max_sched_latency():
+                i = i + 1
+                print("{:<8} {:<16} {:>10.3f} {:>16} {:>16.6f}".format(tsk.pid, tsk.name,
+                        tsk.avg_sched_latency(), tsk.max_sched_latency(),
+                        tsk.max_sched_latency_ts() + tsk.max_sched_latency()/1000000))
+        '''
+
         for pid in self.tasklist:
             tsk = self.tasklist[pid]
-            print("{:<8} {:<16} {:>10.3f} {:>10}".format(tsk.pid, tsk.name, tsk.avg_sched_latency(), tsk.max_sched_latency()))
+            print("{:<8} {:<16} {:>10.3f} {:>16} {:>16}".format(tsk.pid, tsk.name, tsk.avg_sched_latency(), tsk.max_sched_latency(), self.max_sched_latency_ts()))
 
+            '''
     def show_sched_latency_by_pid(self, pid):
         tsk = self.tasklist[pid]
         print("{:<8} {:<16} {:>10.3f} {:>10}".format(tsk.pid, tsk.name, tsk.avg_sched_latency(), tsk.max_sched_latency()))

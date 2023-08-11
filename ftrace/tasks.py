@@ -94,6 +94,14 @@ class task():
         else:
             return 0
 
+    def max_sched_latency_ts(self):
+        max_sdl = self.max_sched_latency()
+        if max_sdl:
+            idx = self.sched_latency.index(max_sdl)
+            return self.sched_latency_ts[idx]
+        else:
+            return 0;
+
     def plot_sched_latency(self):
         plt.plot(self.sched_latency_ts, self.sched_latency, 'bx')
         plt.show()

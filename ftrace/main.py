@@ -38,7 +38,7 @@ ft.elist.check_if_data_lost()
 
 ft.calc_sched_latency()
 
-ft.show_sched_latency_all()
+ft.show_sched_latency_all(20)
 
 #ft.plot_sched_latency_all()
 #ft.plot_sched_latency_tgid(6873)
@@ -56,7 +56,7 @@ ft.show_sched_latency_all()
 for tsk in ft.tasklist:
     task = ft.tasklist[tsk]
 #    if 0 or task.tgid == 6713:
-    if tsk == 18586:
+    if tsk == 2969:
         ft.tasklist[tsk].show_sched_latency()
       #  ft.tasklist[tsk].plot_sched_latency()
      #   ft.tasklist[tsk].show_sleep_ts()
