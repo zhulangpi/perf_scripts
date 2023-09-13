@@ -29,8 +29,8 @@ def cleanup_file(args):
                 f0.write(line)
     f0.close()
 
-# pidstat -t -p {pid} 1
-def work_process(args):
+# pidstat -t 1
+def parse_thread(args):
     with open(f0name) as f:
         # First line is a table header
         header = f.readline().split()
@@ -50,15 +50,35 @@ def work_process(args):
     df["Time"] = pd.to_datetime(df["Time"])
     x = df["Time"].values.tolist()
     y = df["%CPU"].values.tolist()
- #   df = df.sort_values(by="Time")
-    print(df)
-    fig = px.line(df, x='Time', y='%CPU', color='key', markers=True)
-    fig.show()
-    fig = px.line(dfsum, x='Time', y='%CPU', color='key')
-    fig.show()
+    df = df.sort_values(by="Time")
+    fig = px.line(df, x='Time', y='%CPU', color='key', markers=True, title=f0name)
+    #fig.show()
+    fig = px.line(dfsum, x='Time', y='%CPU', color='key', title='sum - ' + f0name)
+    #fig.show()
+
+    keys = set(dfsum['key'])
+    dfcpu = pd.DataFrame(columns=['key', 'cpu'])
+
+    for key in keys:
+        dftmp = dfsum[dfsum['key'] == key]
+        dfcpu.loc[len(dfcpu)]=[key, dftmp['%CPU'].mean()]
+
+    dfcpu = dfcpu.sort_values(by='cpu', ascending=False)
+    print(dfcpu.head(10))
+
+    keys = set(df['key'])
+    dftcpu = pd.DataFrame(columns=['key', 'cpu'])
+
+    for key in keys:
+        dftmp = df[df['key'] == key]
+        dftcpu.loc[len(dftcpu)]=[key, dftmp['%CPU'].mean()]
+
+    dftcpu = dftcpu.sort_values(by='cpu', ascending=False)
+    print(dftcpu.head(30))
+
 
 # pidtat 1
-def work_sys(args):
+def parse_process(args):
     with open(f0name) as f:
         # First line is a table header
         header = f.readline().split()
@@ -85,8 +105,9 @@ def main():
     parser.add_argument('--input','-i',type=str,help="Input file")
     args = parser.parse_args()
     cleanup_file(args)
-    work_sys(args)
-    #work_process(args)
+    #parse_process(args)
+    parse_thread(args)
 
+pd.options.display.max_rows = None
 main()
 

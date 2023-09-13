@@ -11,6 +11,8 @@ import networkx as nx
 from common import ts2us
 from ftrace_parse import ftrace
 import sys, getopt
+import plotly.express as px
+import pandas as pd
 
 inputfile = "ftrace.log"
 
@@ -32,19 +34,34 @@ print("inputfile:", inputfile)
 ft = ftrace(inputfile)
 #ft.tasklist.showall()
 
-#ft.eventlist_slice(359.694424, 360.694424)
+#ft.eventlist_slice(359.694424, 360.694424, 1)
 
 ft.elist.check_if_data_lost()
 
-ft.calc_sched_latency()
+#ft.calc_sched_latency()
 
-ft.show_sched_latency_all(20)
+#ft.show_sched_latency_all(20)
 
 #ft.plot_sched_latency_all()
 #ft.plot_sched_latency_tgid(6873)
 
 #ft.nx_wakechain()
 #ft.show_wakechain()
+
+'''
+a = [1,2,3,4,5]
+x = [[5],[6],[7],[8],[9]]
+y = [10,12,13,14,15]
+print(dict(zip(a, x)))
+
+df = pd.DataFrame(dict(zip(a, x)))
+print(df)
+fig = px.line(df, markers=True)
+fig.show()
+'''
+
+cpulist = list(range(12))
+ft.calc_cpu_loading(cpulist, 1)
 
 
 #ft.tasklist[8138].slot_wake()
@@ -53,11 +70,11 @@ ft.show_sched_latency_all(20)
 
 #'''
 
-for tsk in ft.tasklist:
-    task = ft.tasklist[tsk]
+#for tsk in ft.tasklist:
+#    task = ft.tasklist[tsk]
 #    if 0 or task.tgid == 6713:
-    if tsk == 2969:
-        ft.tasklist[tsk].show_sched_latency()
+#    if tsk == 2969:
+#        ft.tasklist[tsk].show_sched_latency()
       #  ft.tasklist[tsk].plot_sched_latency()
      #   ft.tasklist[tsk].show_sleep_ts()
     #    ft.tasklist[tsk].plot_sleep_ts()

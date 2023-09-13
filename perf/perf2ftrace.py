@@ -20,11 +20,14 @@ lastline = [0]* 64 # assume that nr_cpus < 64
 
 thread_map = {}
 
+
+fname = "perf.script"
+
 # build thread map
 # perf script的输出log里有一些线程名字丢了，有一些pid丢了，在输出ftrae log时候根据历史log修复下
 # demo:
 #           :-1    -1/-1    [015] 327083.028577:       sched:sched_switch: prev_comm=sh prev_pid=2377869 prev_prio=120 prev_state=X ==> next_comm=swapper/15 next_pid=0 next_prio=120 
-with open("perf.script") as f:
+with open(fname) as f:
     for line in f:
         #swapper     0/0     [004] 320543.563698:       sched:sched_switch: prev_comm=swapper/4 prev_pid=0 prev_prio=120 prev_state=R ==> next_comm=perf next_pid=2134363 next_prio=120
         ret = re.findall("(\S+)\s+(\S+)\/(\S+)\s+\[(\d+)\]\s+(\S+)\s+(\S+)([\S+\s+]+)\n", line)
@@ -59,7 +62,7 @@ def get_tid_from_trace(trace):
 
 
 # output ftrace log
-with open("perf.script") as f:
+with open(fname) as f:
     transfer_failed_line = 0
     for line in f:
         #print(line)
