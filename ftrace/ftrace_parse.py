@@ -11,33 +11,47 @@ import networkx as nx
 import numpy as np
 import plotly.express as px
 import pandas as pd
-from common import ts2us
+from common import ts2us, showmem
+import time
+import gc
 
 class ftrace():
     def __init__(self, logfile=None):
         self.tasklist = tasks()
         self.elist = eventlist()
         self.wakechain = {}
+        self.nr_cpus = 0
         if not logfile:
             logfile = "ftrace.log"
+        t0 = time.time()
         with open(logfile) as f:
             for line in f:
                 ret = re.findall("\s+(\S+)\-(\d+)\s+\((.*?)\)\s+\[(\d+)\]\s+\S+\s+(\S+)\:\s+(\S+)\:([\S+\s+]+)\n", line)
                 #ret = re.findall("\s+(\S+)\-(\d+)\s+\((.*?)\)\s+\[(\d+)\]\s+(\S+)\:\s+(\S+)\:([\S+\s+]+)\n", line)
                 if ret:
                     comm,pid,tgid,cpu,timestamp,eventtype,trace = ret[0]
+                    cpu = int(cpu, 10)
+                    pid = int(pid)
                     timestamp = float(timestamp)
+                    if cpu > self.nr_cpus:
+                        self.nr_cpus = cpu
                     if tgid == "-------":
                         tgid = pid
-                    pid = int(pid)
-                    t = task(comm, pid, tgid)
-                    if t not in self.tasklist:
+                    if pid in self.tasklist:
+                        t = self.tasklist[pid]
+                    else:
+                        t = task(comm, pid, tgid)
                         self.tasklist.addtask(t)
                     e = event(t, cpu, timestamp, eventtype, trace)
                     self.elist.append(e)
                 else:
                     print("parse failed:", line)
-        self.elist.check_if_data_lost()
+        f.close()
+        gc.collect()
+        self.nr_cpus = self.nr_cpus + 1
+        print(len(self.tasklist), len(self.elist))
+        print("init cost {}s".format(time.time() - t0))
+  #      self.elist.check_if_data_lost()
 
     # usage: ftrace.eventlist_slice(359.694424, 360.694424)
     def eventlist_slice(self, start, end, replace = 0):
@@ -219,56 +233,7 @@ class ftrace():
                 print("{:<16} {:<8}".format(task.name, tsk), end='')
                 task.show_sched_latency_each_period()
 
-    # usage: calc_runtime_timerange(1, [0], [200,300])
-    # this will calc task 1 running time on cpu0 between 200s-300s
-    # currlist 代表cpu上当前运行着的任务的pid
-    def calc_runtime_timerange(self, pid, cpulist, time_range, currlist = []):
-        elist = self.eventlist_slice(time_range[0], time_range[1])
-        runtime = [-1] * len(cpulist)
-        switchin_time = [0] * len(cpulist)
-        sumtime = 0
-        if currlist:
-            tmplist = currlist
-        else:
-            tmplist = [0] * len(cpulist)
-        for e in elist:
-            if e.eventtype == "sched_switch":
-                if e.cpu not in cpulist:
-                    continue
-                cpulist_idx = cpulist.index(e.cpu)
-                if e.trace.next_pid == pid:
-                    switchin_time[cpulist_idx] = e.timestamp
-                tmplist[cpulist_idx] = e.trace.next_pid
-                if runtime[cpulist_idx] == -1:
-                    if e.trace.prev_pid == pid:
-                        runtime[cpulist_idx] = e.timestamp - time_range[0]
-                    else:
-                        runtime[cpulist_idx] = 0
-                    continue
-                if e.trace.prev_pid == pid:
-                    runtime[cpulist_idx] = runtime[cpulist_idx] + e.timestamp - switchin_time[cpulist_idx]
-                    switchin_time[cpulist_idx] = 0
-        for idx, rt in enumerate(runtime):
-            if rt == -1:
-                runtime[idx] = 0
-
-        for idx, st in enumerate(switchin_time):
-            if st:
-                runtime[idx] = runtime[idx] + time_range[1] - st
-        if currlist:
-            for idx,cur in enumerate(currlist):
-                if cur == pid and runtime[idx] == 0:
-                    runtime[idx] = time_range[1] - time_range[0]
-
-        for idx, rt in enumerate(runtime):
-            print("running time {} on cpu{} ".format(round(rt,6), cpulist[idx]))
-        print("total running time {} between {}-{}".format(sum(runtime), time_range[0], time_range[1]))
-        return (sum(runtime), tmplist)
-
-
-    # usage: calc_cpu_loading([0,1,2], 0.1, [200,300])
-    # this will calc cpu loading of cpu 0,1,2 between time of [200, 300]s, interval of time is 0.1s
-    def calc_cpu_loading(self, cpulist, time_interval, time_range = []):
+    def calc_cpus_loading(self, cpulist, time_interval, time_range = []):
         if not cpulist:
             print("empty cpulist")
             return
@@ -283,39 +248,9 @@ class ftrace():
                 time_range[1] = elist.end()
         else:
             time_range = [elist.start(), elist.end()]
-        elist = self.eventlist_slice(time_range[0], time_range[1])
-        print(time_range)
+        print("calc loadings of cpus {} in time range {}".format(cpulist, time_range))
 
-        ts = []
-        loadings = [ [] for x in  range(len(cpulist) + 1) ]
-        currlist = []
-        print(loadings, cpulist, len(cpulist))
-        for t in np.arange(time_range[0], time_range[1], time_interval):
-            if t + time_interval > time_range[1]:
-                break
-            ts.append(t)
-            total_loading = 0
+        elist = elist.slice(Interval(time_range[0], time_range[1]))
 
-            for idx, c in enumerate(cpulist):
-                print("in  {}".format(currlist))
-                sumtime, currlist = self.calc_runtime_timerange(0, [c], [t, t + time_interval], currlist)
-                print("out {}".format(currlist))
-                loading = 100 * sumtime / time_interval
-                loadings[idx].append(loading)
-                total_loading = total_loading + loading
-            loadings[-1].append(total_loading)
+        elist.calc_cpus_loading(0, cpulist, time_interval)
 
-        loadings[-1] = [ x / len(cpulist) for x in loadings[-1]]
-        print(ts)
-        print(loadings[-1])
-        keys = cpulist
-        keys.append("sum")
-        df = pd.DataFrame(dict(zip(keys, loadings)))
-        fig = px.line(df, markers=True, title="cpuloading")
-        fig.show()
- #       for idx, l in enumerate(loadings):
-  #          plt.plot(ts,  loadings[idx])
-      #      px.line()
-   #         plt.show()
-
-        #plt.plot(ts,  loadings[-1])

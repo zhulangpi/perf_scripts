@@ -36,8 +36,6 @@ ft = ftrace(inputfile)
 
 #ft.eventlist_slice(359.694424, 360.694424, 1)
 
-ft.elist.check_if_data_lost()
-
 #ft.calc_sched_latency()
 
 #ft.show_sched_latency_all(20)
@@ -48,21 +46,8 @@ ft.elist.check_if_data_lost()
 #ft.nx_wakechain()
 #ft.show_wakechain()
 
-'''
-a = [1,2,3,4,5]
-x = [[5],[6],[7],[8],[9]]
-y = [10,12,13,14,15]
-print(dict(zip(a, x)))
-
-df = pd.DataFrame(dict(zip(a, x)))
-print(df)
-fig = px.line(df, markers=True)
-fig.show()
-'''
-
-cpulist = list(range(12))
-ft.calc_cpu_loading(cpulist, 1)
-
+cpulist = list(range(ft.nr_cpus))
+ft.calc_cpus_loading(cpulist, 1)
 
 #ft.tasklist[8138].slot_wake()
 #ft.stat_waker_by_pid(8138)

@@ -8,6 +8,7 @@ from six import integer_types
 import matplotlib.pyplot as plt
 from common import ts2us
 import numpy as np
+import sys
 
 class task():
     __slots__ = ('name', 'pid', 'prio', 'tgid', 'ppid',
