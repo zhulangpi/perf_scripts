@@ -28,8 +28,16 @@ class ftrace():
             for line in f:
                 ret = re.findall("\s+(\S+)\-(\d+)\s+\((.*?)\)\s+\[(\d+)\]\s+\S+\s+(\S+)\:\s+(\S+)\:([\S+\s+]+)\n", line)
                 #ret = re.findall("\s+(\S+)\-(\d+)\s+\((.*?)\)\s+\[(\d+)\]\s+(\S+)\:\s+(\S+)\:([\S+\s+]+)\n", line)
-                if ret:
-                    comm,pid,tgid,cpu,timestamp,eventtype,trace = ret[0]
+                # without tgid
+                ret1 = re.findall("\s+(\S+)\-(\d+)\s+\[(\d+)\]\s+\S+\s+(\S+)\:\s+(\S+)\:([\S+\s+]+)\n", line)
+
+                if ret1 or ret:
+                    if ret:
+                        comm,pid,tgid,cpu,timestamp,eventtype,trace = ret[0]
+                    if ret1:
+                        comm,pid,cpu,timestamp,eventtype,trace = ret1[0]
+                        tgid = pid
+
                     cpu = int(cpu, 10)
                     pid = int(pid)
                     timestamp = float(timestamp)
@@ -51,7 +59,7 @@ class ftrace():
         self.nr_cpus = self.nr_cpus + 1
         print(len(self.tasklist), len(self.elist))
         print("init cost {}s".format(time.time() - t0))
-  #      self.elist.check_if_data_lost()
+        self.elist.check_if_data_lost()
 
     # usage: ftrace.eventlist_slice(359.694424, 360.694424)
     def eventlist_slice(self, start, end, replace = 0):
@@ -233,7 +241,7 @@ class ftrace():
                 print("{:<16} {:<8}".format(task.name, tsk), end='')
                 task.show_sched_latency_each_period()
 
-    def calc_cpus_loading(self, cpulist, time_interval, time_range = []):
+    def calc_cpus_loading(self, cpulist, time_interval, time_range = [], pid = 0):
         if not cpulist:
             print("empty cpulist")
             return
@@ -252,5 +260,5 @@ class ftrace():
 
         elist = elist.slice(Interval(time_range[0], time_range[1]))
 
-        elist.calc_cpus_loading(0, cpulist, time_interval)
+        elist.calc_cpus_loading(pid, cpulist, time_interval)
 

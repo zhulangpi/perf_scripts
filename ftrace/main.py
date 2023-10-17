@@ -47,7 +47,7 @@ ft = ftrace(inputfile)
 #ft.show_wakechain()
 
 cpulist = list(range(ft.nr_cpus))
-ft.calc_cpus_loading(cpulist, 1)
+ft.calc_cpus_loading(cpulist, 1, pid = 0)
 
 #ft.tasklist[8138].slot_wake()
 #ft.stat_waker_by_pid(8138)
