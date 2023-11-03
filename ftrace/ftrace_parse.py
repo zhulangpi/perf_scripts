@@ -24,6 +24,7 @@ class ftrace():
         if not logfile:
             logfile = "ftrace.log"
         t0 = time.time()
+
         with open(logfile) as f:
             for line in f:
                 ret = re.findall("\s+(\S+)\-(\d+)\s+\((.*?)\)\s+\[(\d+)\]\s+\S+\s+(\S+)\:\s+(\S+)\:([\S+\s+]+)\n", line)
@@ -94,7 +95,7 @@ class ftrace():
                     del waked_tsks[switch_in_tsk]
 
                 # 被抢占后第一次执行，统计被抢占时间
-                if prev_stat == "R":
+                if prev_stat == "R" or prev_stat == "R+":
                     preempted_tsks[switch_out_tsk] = e.timestamp
 
                 if switch_in_tsk in preempted_tsks:
@@ -105,7 +106,7 @@ class ftrace():
                         switch_in_tsk.add_sched_latency_in_period(ts2us(ts - preempted_tsks[switch_in_tsk]))
                     del preempted_tsks[switch_in_tsk]
 
-                if prev_stat == "S":
+                if prev_stat == "S" or prev_stat == "D":
                     sleep_tsks[switch_out_tsk] = e.timestamp
                     if switch_out_tsk.run_period:
                         switch_out_tsk.update_run_period(e.timestamp)
@@ -113,8 +114,8 @@ class ftrace():
             if e.eventtype == "sched_waking":
                 waked_pid = e.trace.pid
                 waked_tsk = self.tasklist[waked_pid]
-                waked_tsks[waked_tsk] = e.timestamp
                 if waked_tsk in sleep_tsks:
+                    waked_tsks[waked_tsk] = e.timestamp
                     waked_tsk.add_sleep_ts(sleep_tsks[waked_tsk], ts2us(e.timestamp - sleep_tsks[waked_tsk]))
                     waked_tsk.append_run_period_ts(e.timestamp)
                     waked_tsk.append_run_period(0)
@@ -125,9 +126,13 @@ class ftrace():
                 waker_tsk = self.tasklist[e.task]
                 self.stat_waking_events(waker_tsk, waked_tsk)
 
+    def calc_runtime(self):
+        for pid in self.tasklist:
+            tsk = self.tasklist[pid]
+            tsk.calc_runtime()
+
     # 统计线程sleep状态下，从一次wakeup到再次进入sleep的总时间、总调度延迟时间
     # 反应了一次运行周期下，线程的延迟
-
     def show_sched_latency_all(self, topN = 100000):
         i = 0
         sorted_tsk = sorted(self.tasklist.items(), key = lambda kv:kv[1].max_sched_latency(), reverse=True)
@@ -179,6 +184,23 @@ class ftrace():
         plt.plot(pids, avg_sl, 'rx')
         plt.plot(pids, max_sl, 'b.')
         plt.show()
+
+    def show_runtime_all(self, topN = 100000):
+        i = 0
+        sorted_tsk = sorted(self.tasklist.items(), key = lambda kv:kv[1].max_runtime(), reverse=True)
+        print("{:<8} {:<16} {:>10} {:>16}".format("pid", "comm", "avg_runtime/us", "max_runtime/us"))
+        for tsk in sorted_tsk:
+            if i > topN:
+                break
+            tsk = tsk[1]
+            if tsk.max_runtime():
+                i = i + 1
+                print("{:<8} {:<16} {:>10.3f} {:>16}".format(tsk.pid, tsk.name,
+                        tsk.avg_runtime(), tsk.max_runtime()))
+
+    def show_runtime_by_pid(self, pid):
+        tsk = self.tasklist[pid]
+        print("{:<8} {:<16} {:>10.3f} {:>10}".format(tsk.pid, tsk.name, tsk.avg_runtime(), tsk.max_runtime()))
 
     def stat_waking_events(self, waker, waked):
         if waked not in self.tasklist or waker not in self.tasklist:

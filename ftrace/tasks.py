@@ -13,7 +13,8 @@ import sys
 class task():
     __slots__ = ('name', 'pid', 'prio', 'tgid', 'ppid',
             'sched_latency_ts', 'sched_latency', 'sleep_ts', 'sleep_duration',
-            'wakers', 'wakeds', 'run_period_ts', 'run_period', 'sched_latency_in_period', 'i')
+            'wakers', 'wakeds', 'run_period_ts', 'run_period', 'sched_latency_in_period',
+            'runtime_in_period', 'i')
     def __init__(self, name, pid, tgid=None, ppid=None, prio=None):
         pid = int(pid) if pid else pid
         prio = int(prio) if prio else prio
@@ -38,6 +39,7 @@ class task():
         self.run_period_ts = [] # T0
         self.run_period = [] # T2 - T0
         self.sched_latency_in_period = [] # runable time in period. T2 - T0这段时间内的调度延迟
+        self.runtime_in_period = [] # T2 - T0 这段时间内的实际运行时间。这个值越高，代表线程会连续运行的时间越长。
 
         self.i = 0
 
@@ -83,6 +85,7 @@ class task():
         l = len(self.sched_latency_ts)
         for i in range(l):
             print("{:>10.6f}s {:>10}us".format(self.sched_latency_ts[i], self.sched_latency[i]))
+
     def avg_sched_latency(self):
         if len(self.sched_latency):
             return round(sum(self.sched_latency) / len(self.sched_latency), 3)
@@ -106,6 +109,31 @@ class task():
     def plot_sched_latency(self):
         plt.plot(self.sched_latency_ts, self.sched_latency, 'bx')
         plt.show()
+
+    def calc_runtime(self):
+        for t,sl in zip(self.run_period, self.sched_latency_in_period):
+            if t:
+                self.runtime_in_period.append(t - sl)
+            else:
+                self.runtime_in_period.append(0)
+
+
+    def avg_runtime(self):
+        if len(self.runtime_in_period):
+            return round(sum(self.runtime_in_period) / len(self.runtime_in_period), 3)
+        else:
+            return 0
+
+    def max_runtime(self):
+        if self.runtime_in_period:
+            return max(self.runtime_in_period)
+        else:
+            return 0
+
+    def show_runtime(self):
+        l = len(self.run_period_ts)
+        for i in range(l):
+            print("{:<10} {:>10} {:>10} {:>10}us".format(self.run_period_ts[i], self.run_period[i], self.sched_latency_in_period[i], self.runtime_in_period[i]))
 
     def add_sleep_ts(self, ts, duration):
         self.sleep_ts.append(ts)

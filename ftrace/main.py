@@ -36,9 +36,9 @@ ft = ftrace(inputfile)
 
 #ft.eventlist_slice(359.694424, 360.694424, 1)
 
-#ft.calc_sched_latency()
+ft.calc_sched_latency()
 
-#ft.show_sched_latency_all(20)
+ft.show_sched_latency_all(50)
 
 #ft.plot_sched_latency_all()
 #ft.plot_sched_latency_tgid(6873)
@@ -46,12 +46,22 @@ ft = ftrace(inputfile)
 #ft.nx_wakechain()
 #ft.show_wakechain()
 
-cpulist = list(range(ft.nr_cpus))
-ft.calc_cpus_loading(cpulist, 1, pid = 0)
+# calc cpu loadings of pid = 0, time step is 1s.
+#cpulist = list(range(ft.nr_cpus))
+#ft.calc_cpus_loading(cpulist, 1, pid = 0)
 
 #ft.tasklist[8138].slot_wake()
 #ft.stat_waker_by_pid(8138)
 #ft.stat_waked_by_pid(8138)
+
+
+ft.calc_runtime()
+#ft.show_period_by_pid(9089)
+#ft.show_runtime_by_pid(8814)
+ft.show_runtime_all()
+#task = ft.tasklist[8697]
+#task.show_runtime()
+
 
 #'''
 
